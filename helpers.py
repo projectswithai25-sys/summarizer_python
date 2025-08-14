@@ -93,25 +93,46 @@ def chunk_text(text: str, max_chars: int = 3000) -> List[str]:
         chunks.append(buf.strip())
     return chunks
 
-def summarize_lexrank(text: str, sentences: int = 5) -> str:
+def summarize_lexrank(text: str, max_words: int = 150) -> str:
     try:
         parser = PlaintextParser.from_string(text, Tokenizer("english"))
         summarizer = LexRankSummarizer()
-        summary_sents = summarizer(parser.document, sentences)
-        return " ".join(str(s) for s in summary_sents)
+        # Request a large number of sentences
+        summary_sents_all = summarizer(parser.document, len(parser.document.sentences))
+
+        summary_sents = []
+        word_count = 0
+        for s in summary_sents_all:
+            sentence_word_count = len(str(s).split())
+            if word_count + sentence_word_count > max_words:
+                break
+            summary_sents.append(str(s))
+            word_count += sentence_word_count
+
+        return " ".join(summary_sents)
     except Exception:
-        # Fallback: take first N sentences
-        fallback = " ".join(re.split(r'(?<=[.!?])\s+', text)[:sentences])
+        # Fallback: take first sentences up to word limit
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+        summary_words = []
+        word_count = 0
+        for sentence in sentences:
+            sentence_word_count = len(sentence.split())
+            if word_count + sentence_word_count > max_words:
+                break
+            summary_words.append(sentence)
+            word_count += sentence_word_count
+        fallback = " ".join(summary_words)
         return fallback
 
 @st.cache_data
-def summarize_long_text(text: str, target_sentences: int = 6) -> str:
+def summarize_long_text(text: str, target_words: int = 150) -> str:
     # Chunk then summarize each chunk; finally summarize combined summaries
     chunks = chunk_text(text, max_chars=4000)
-    per_chunk = max(3, min(7, target_sentences))
-    chunk_summaries = [summarize_lexrank(c, sentences=per_chunk) for c in chunks]
+    # Summarize each chunk to a fixed size to extract key sentences
+    chunk_summaries = [summarize_lexrank(c, max_words=100) for c in chunks]
     combined = "\n".join(chunk_summaries)
-    final = summarize_lexrank(combined, sentences=target_sentences)
+    # Summarize the combined summaries to the final target word count
+    final = summarize_lexrank(combined, max_words=target_words)
     return final
 
 def clean_text(t: str) -> str:

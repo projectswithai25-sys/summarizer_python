@@ -26,7 +26,7 @@ with st.expander("➕ Inputs", expanded=True):
         type=["pdf", "txt"],
         accept_multiple_files=True
     )
-    max_sentences = st.slider("Summary length (sentences)", min_value=3, max_value=12, value=6, step=1)
+    max_words = st.slider("Maximum summary words", min_value=50, max_value=500, value=150, step=10)
 
 go = st.button("🚀 Generate Summary", type="primary")
 
@@ -82,7 +82,7 @@ if go:
             st.subheader("Per‑source summaries")
             per_summaries = []
             for label, txt in non_empty:
-                summary = summarize_long_text(txt, target_sentences=max_sentences)
+                summary = summarize_long_text(txt, target_words=max_words)
                 per_summaries.append((label, summary))
                 with st.container(border=True):
                     st.markdown(f"**{label}**")
@@ -91,7 +91,7 @@ if go:
             # Consolidated overall summary
             st.subheader("Consolidated takeaways")
             combined_text = "\n\n".join(s for _, s in per_summaries)
-            overall = summarize_long_text(combined_text, target_sentences=max_sentences)
+            overall = summarize_long_text(combined_text, target_words=max_words)
             with st.container(border=True):
                 st.markdown("**Overall Summary**")
                 st.write(overall)
@@ -100,7 +100,7 @@ if go:
             st.subheader("Crisp takeaways")
             bullets = re.split(r'(?<=[.!?])\s+', overall)
             bullets = [b.strip() for b in bullets if b.strip()]
-            bullets = bullets[: max(5, max_sentences)]
+            bullets = bullets[:5]
             st.markdown("\n".join([f"- {b}" for b in bullets]))
 
         if errors:
